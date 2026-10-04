@@ -37,9 +37,12 @@
 
   const SIZES = [40, 70, 100, 130];
   const DIRECTIONS = ["UP", "DOWN", "LEFT", "RIGHT"];
-  const TOTAL_TRIALS = 20; // 總測驗題數設為 20 題
+  const TOTAL_TRIALS = 20;
 
-  let state = "READY";
+  let state = "READY"; // READY, COUNTDOWN, PLAYING, RESULT
+  let countdownNumber = 3;
+  let countdownTimer = null;
+
   let trial = 0;
   let correct = 0;
   let reactionTimes = [];
@@ -66,19 +69,15 @@
     return array;
   }
 
-  // 產生所有組合並隨機挑選 20 題
   function generateTrialsPool() {
     const baseCombos = [];
     for (const s of SIZES) {
       for (const d of DIRECTIONS) {
-        baseCombos.push({ size: s, direction: d }); // 4 x 4 = 16 種組合
+        baseCombos.push({ size: s, direction: d });
       }
     }
 
-    // 將基礎組合打亂
     let pool = shuffle([...baseCombos]);
-
-    // 若需要 20 題，再補上打亂後的 4 個組合湊滿 20 題，確保分佈均衡
     const remainder = TOTAL_TRIALS - pool.length;
     if (remainder > 0) {
       const extra = shuffle([...baseCombos]).slice(0, remainder);
@@ -88,14 +87,28 @@
     trialsPool = shuffle(pool).slice(0, TOTAL_TRIALS);
   }
 
+  function startCountdown() {
+    state = "COUNTDOWN";
+    countdownNumber = 3;
+
+    if (countdownTimer) clearInterval(countdownTimer);
+
+    countdownTimer = setInterval(() => {
+      countdownNumber--;
+      if (countdownNumber <= 0) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        newTrial();
+      }
+    }, 1000);
+  }
+
   function newTrial() {
     const item = trialsPool.pop();
     cSize = item.size;
     direction = item.direction;
 
-    // 速度改為 6 ~ 15 的隨機範圍
     const moveSpeed = randInt(3, 10);
-
     const spawnSides = ["LEFT", "RIGHT", "TOP", "BOTTOM"];
     const side = spawnSides[Math.floor(Math.random() * spawnSides.length)];
     const margin = cSize + 40;
@@ -184,7 +197,7 @@
         correct = 0;
         reactionTimes = [];
         generateTrialsPool();
-        newTrial();
+        startCountdown(); // 啟動倒數計時
       }
     } else if (state === "PLAYING") {
       let answer = null;
@@ -221,6 +234,13 @@
       ctx.fillText("DYNAMIC VISUAL ACUITY TEST", WIDTH / 2, 240);
       ctx.font = "28px Arial";
       ctx.fillText("PRESS SPACE TO START", WIDTH / 2, 330);
+
+    } else if (state === "COUNTDOWN") {
+      // 繪製倒數畫面
+      ctx.fillStyle = "#000000";
+      ctx.textAlign = "center";
+      ctx.font = "bold 96px Arial";
+      ctx.fillText(countdownNumber, WIDTH / 2, HEIGHT / 2 + 30);
 
     } else if (state === "PLAYING") {
       cX += vx;
